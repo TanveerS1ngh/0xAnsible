@@ -1,0 +1,73 @@
+---
+- name: Run System Update and Maintenance
+  hosts: localhost
+  become: true
+
+  tasks:
+    - name: Detect Linux distribution
+      ansible.builtin.setup:
+        gather_subset: all
+      register: facts
+
+    - name: Update package information
+      ansible.builtin.package:
+        name: "{{ 'update_cache' }}"
+        state: "{{ 'yes' }}"
+      when: facts['ansible_facts']['ansible_os_family'] == 'Debian'
+
+    - name: Upgrade all packages
+      ansible.builtin.package:
+        name: "{{ item }}"
+        state: "{{ 'latest' }}"
+      loop:
+        - 'upgrade'
+        - 'autoremove'
+        - 'autoclean'
+      when: facts['ansible_facts']['ansible_os_family'] == 'Debian'
+
+    - name: Update locate database
+      ansible.builtin.command:
+        cmd: updatedb
+      when: facts['ansible_facts']['ansible_os_family'] == 'Debian'
+
+    - name: Update package information before installing Flameshot
+      ansible.builtin.package:
+        name: "{{ 'update_cache' }}"
+        state: "{{ 'yes' }}"
+      when: facts['ansible_facts']['ansible_os_family'] == 'Debian'
+
+    - name: Install Flameshot
+      ansible.builtin.package:
+        name: flameshot
+        state: latest
+      when: facts['ansible_facts']['ansible_os_family'] == 'Debian'
+
+    - name: Get the current kernel version
+      ansible.builtin.command:
+        cmd: uname -r
+      register: current_kernel
+      when: facts['ansible_facts']['ansible_os_family'] == 'Debian'
+
+    - name: Purge old Linux kernel
+      ansible.builtin.package:
+        name: "linux-image-{{ current_kernel.stdout_lines[0] | regex_replace('(.*)-.*', '\\1') }}*"
+        state: absent
+      when: facts['ansible_facts']['ansible_os_family'] == 'Debian'
+
+    - name: Update GRUB
+      ansible.builtin.command:
+        cmd: update-grub
+      when: facts['ansible_facts']['ansible_os_family'] == 'Debian'
+
+    - name: Install Visual Studio Code
+      ansible.builtin.package:
+        name: code
+        state: latest
+      when: facts['ansible_facts']['ansible_os_family'] == 'Debian'
+
+    - name: Install kali-linux-everything
+      ansible.builtin.package:
+        name: kali-linux-everything
+        state: present
+        update_cache: yes
+      when: facts['ansible_facts']['ansible_os_family'] == 'Debian'
